@@ -166,7 +166,7 @@ function loadAllPosts() {
     });
 }
 
-// Display posts in grid
+// Display posts in grid - FIXED: Delete button in top right corner
 function displayPosts(posts, container) {
     if (posts.length === 0) {
         container.innerHTML = `
@@ -183,6 +183,11 @@ function displayPosts(posts, container) {
         <div class="post-card" data-post-id="${post.id}">
             <div class="post-header">
                 <div class="post-name">${post.name}</div>
+                ${post.userId === currentUserId ? `
+                    <button class="delete-post-btn" title="Delete Post">
+                        <i class="fas fa-times"></i>
+                    </button>
+                ` : ''}
             </div>
             <div class="post-date">${formatDate(post.timestamp)}</div>
             ${post.edited ? '<span class="edited-badge">(post was edited)</span>' : ''}
@@ -193,9 +198,6 @@ function displayPosts(posts, container) {
                 ${post.userId === currentUserId ? `
                     <button class="btn btn-secondary edit-post-btn">
                         <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button class="btn btn-danger delete-post-btn">
-                        <i class="fas fa-trash"></i> Delete
                     </button>
                 ` : ''}
             </div>
@@ -279,7 +281,7 @@ function applyFilters() {
     filtersPanel.classList.add('hidden');
 }
 
-// Post creation
+// Post creation - FIXED: Proper cooldown blocking
 function openPostPopup() {
     // Check cooldown
     checkCooldown().then(canPost => {
@@ -291,6 +293,12 @@ function openPostPopup() {
             document.getElementById('photo-urls').value = '';
             document.getElementById('video-urls').value = '';
             updateCharCounters();
+        } else {
+            // Show notification if still in cooldown
+            const remaining = getRemainingCooldown();
+            if (remaining > 0) {
+                showCooldownNotification(remaining);
+            }
         }
     });
 }
@@ -332,9 +340,13 @@ async function submitPost() {
         return;
     }
 
-    // Check cooldown
+    // Check cooldown - FIXED: Actually block posting during cooldown
     const canPost = await checkCooldown();
-    if (!canPost) return;
+    if (!canPost) {
+        const remaining = getRemainingCooldown();
+        showCooldownNotification(remaining);
+        return;
+    }
 
     // Create post object
     const postData = {
@@ -364,7 +376,7 @@ async function submitPost() {
     }
 }
 
-// Cooldown system - FIXED: Now properly blocks post button
+// Cooldown system - FIXED: Actually blocks posting
 async function checkCooldown() {
     try {
         const cooldownSnap = await get(ref(db, `userCooldowns/${currentUserId}`));
@@ -373,7 +385,6 @@ async function checkCooldown() {
         if (lastPostTime) {
             const cooldownEnd = lastPostTime + (2 * 60 * 1000); // 2 minutes
             if (Date.now() < cooldownEnd) {
-                const remaining = Math.ceil((cooldownEnd - Date.now()) / 1000);
                 return false;
             }
         }
@@ -382,6 +393,21 @@ async function checkCooldown() {
         console.error('Error checking cooldown:', error);
         return true;
     }
+}
+
+function getRemainingCooldown() {
+    return new Promise((resolve) => {
+        get(ref(db, `userCooldowns/${currentUserId}`)).then((cooldownSnap) => {
+            const lastPostTime = cooldownSnap.val();
+            if (lastPostTime) {
+                const cooldownEnd = lastPostTime + (2 * 60 * 1000);
+                const remaining = Math.ceil((cooldownEnd - Date.now()) / 1000);
+                resolve(remaining > 0 ? remaining : 0);
+            } else {
+                resolve(0);
+            }
+        }).catch(() => resolve(0));
+    });
 }
 
 function updatePostButtonState() {
@@ -435,6 +461,18 @@ function startCooldownTimer(remainingSeconds) {
         const seconds = remainingSeconds % 60;
         postBtn.innerHTML = `Wait ${minutes}:${seconds.toString().padStart(2, '0')}`;
     }, 1000);
+}
+
+function showCooldownNotification(remainingSeconds) {
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    document.getElementById('cooldown-message').textContent = 
+        `Please wait ${minutes}:${seconds.toString().padStart(2, '0')} before posting again`;
+    
+    cooldownNotification.classList.remove('hidden');
+    setTimeout(() => {
+        cooldownNotification.classList.add('hidden');
+    }, 5000);
 }
 
 // Post details
@@ -565,7 +603,7 @@ function closeMediaZoom() {
     }, 200);
 }
 
-// Reactions system - FIXED: Now allows removing reactions and prevents multiple reactions
+// Reactions system
 async function getReactions(postId) {
     try {
         const reactionsSnap = await get(ref(db, `reactions/${postId}`));
@@ -653,7 +691,7 @@ async function deletePost(postId) {
     }
 }
 
-// Edit post system - FIXED: Now includes media editing
+// Edit post system
 function openEditPopup(postId) {
     const post = currentPosts.find(p => p.id === postId);
     if (!post || post.userId !== currentUserId) return;
