@@ -7,11 +7,7 @@ import {
     get, 
     update, 
     remove,
-    onValue,
-    query,
-    orderByChild,
-    startAt,
-    endAt
+    onValue
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
 // Firebase config
@@ -42,6 +38,12 @@ let editingPostId = null;
 let cooldownInterval = null;
 let currentUserReaction = null;
 
+// NEW: File storage variables
+let selectedPhotos = [];
+let selectedVideos = [];
+let editSelectedPhotos = [];
+let editSelectedVideos = [];
+
 // DOM Elements
 const postBtn = document.getElementById('post-btn');
 const searchBtn = document.getElementById('search-btn');
@@ -68,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeUser();
     setupEventListeners();
     loadAllPosts();
-    updatePostButtonState(); // Check cooldown on page load
+    updatePostButtonState();
 });
 
 // Generate unique user ID
@@ -108,6 +110,12 @@ function setupEventListeners() {
     document.getElementById('edit-post-name').addEventListener('input', updateEditCharCounters);
     document.getElementById('edit-post-description').addEventListener('input', updateEditCharCounters);
 
+    // NEW: File upload handlers
+    document.getElementById('photo-upload').addEventListener('change', handlePhotoUpload);
+    document.getElementById('video-upload').addEventListener('change', handleVideoUpload);
+    document.getElementById('edit-photo-upload').addEventListener('change', handleEditPhotoUpload);
+    document.getElementById('edit-video-upload').addEventListener('change', handleEditVideoUpload);
+
     // Tab switching
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -129,7 +137,6 @@ function setupEventListeners() {
 
 // Show/hide sections
 function showSection(sectionName) {
-    // Update nav active state
     document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
     document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
     
@@ -144,11 +151,9 @@ function showSection(sectionName) {
 
 // Tab switching
 function switchTab(tabName, tabsContainer) {
-    // Update tab buttons
     tabsContainer.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     tabsContainer.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
     
-    // Update tab content
     tabsContainer.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     tabsContainer.querySelector(`#${tabName}-tab`).classList.add('active');
 }
@@ -166,7 +171,7 @@ function loadAllPosts() {
     });
 }
 
-// Display posts in grid - FIXED: Delete button in top right corner
+// Display posts in grid
 function displayPosts(posts, container) {
     if (posts.length === 0) {
         container.innerHTML = `
@@ -219,7 +224,6 @@ function displayPosts(posts, container) {
         });
     });
 
-    // NEW: Delete post buttons
     container.querySelectorAll('.delete-post-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const postId = e.target.closest('.post-card').getAttribute('data-post-id');
@@ -239,7 +243,6 @@ function performSearch() {
     const searchTerm = searchInput.value.trim().toLowerCase();
     let filteredPosts = currentPosts;
 
-    // Apply text search
     if (searchTerm) {
         filteredPosts = filteredPosts.filter(post => 
             post.name.toLowerCase().includes(searchTerm) ||
@@ -247,7 +250,6 @@ function performSearch() {
         );
     }
 
-    // Apply filters
     const beforeDate = document.getElementById('filter-before').value;
     const afterDate = document.getElementById('filter-after').value;
     const mediaType = document.getElementById('filter-type').value;
@@ -281,20 +283,222 @@ function applyFilters() {
     filtersPanel.classList.add('hidden');
 }
 
-// Post creation - FIXED: Proper cooldown blocking
+// NEW: File upload functions
+function handlePhotoUpload(event) {
+    const files = Array.from(event.target.files);
+    const validFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (validFiles.length === 0) {
+        alert('Please select valid image files (JPEG, PNG, GIF, etc.)');
+        return;
+    }
+    
+    // Check file sizes (2MB limit for images)
+    const oversizedFiles = validFiles.filter(file => file.size > 2 * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+        alert('Some images exceed the 2MB size limit. Please select smaller files.');
+        return;
+    }
+    
+    selectedPhotos = validFiles;
+    updatePhotoPreview();
+}
+
+function handleVideoUpload(event) {
+    const files = Array.from(event.target.files);
+    const validFiles = files.filter(file => file.type.startsWith('video/'));
+    
+    if (validFiles.length === 0) {
+        alert('Please select valid video files (MP4, WebM, etc.)');
+        return;
+    }
+    
+    // Check file sizes (5MB limit for videos)
+    const oversizedFiles = validFiles.filter(file => file.size > 5 * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+        alert('Some videos exceed the 5MB size limit. Please select smaller files.');
+        return;
+    }
+    
+    selectedVideos = validFiles;
+    updateVideoPreview();
+}
+
+function handleEditPhotoUpload(event) {
+    const files = Array.from(event.target.files);
+    const validFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (validFiles.length === 0) {
+        alert('Please select valid image files (JPEG, PNG, GIF, etc.)');
+        return;
+    }
+    
+    const oversizedFiles = validFiles.filter(file => file.size > 2 * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+        alert('Some images exceed the 2MB size limit. Please select smaller files.');
+        return;
+    }
+    
+    editSelectedPhotos = validFiles;
+    updateEditPhotoPreview();
+}
+
+function handleEditVideoUpload(event) {
+    const files = Array.from(event.target.files);
+    const validFiles = files.filter(file => file.type.startsWith('video/'));
+    
+    if (validFiles.length === 0) {
+        alert('Please select valid video files (MP4, WebM, etc.)');
+        return;
+    }
+    
+    const oversizedFiles = validFiles.filter(file => file.size > 5 * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+        alert('Some videos exceed the 5MB size limit. Please select smaller files.');
+        return;
+    }
+    
+    editSelectedVideos = validFiles;
+    updateEditVideoPreview();
+}
+
+// NEW: Preview update functions
+function updatePhotoPreview() {
+    const preview = document.getElementById('photo-preview');
+    const count = document.getElementById('photo-count');
+    const size = document.getElementById('photo-size');
+    
+    const totalSize = selectedPhotos.reduce((sum, file) => sum + file.size, 0);
+    const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+    
+    count.textContent = `${selectedPhotos.length} photos selected`;
+    size.textContent = `${sizeMB} MB`;
+    
+    preview.innerHTML = selectedPhotos.map((file, index) => `
+        <div class="preview-item">
+            <img src="${URL.createObjectURL(file)}" alt="Preview">
+            <button class="remove-preview" onclick="removePhoto(${index})">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function updateVideoPreview() {
+    const preview = document.getElementById('video-preview');
+    const count = document.getElementById('video-count');
+    const size = document.getElementById('video-size');
+    
+    const totalSize = selectedVideos.reduce((sum, file) => sum + file.size, 0);
+    const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+    
+    count.textContent = `${selectedVideos.length} videos selected`;
+    size.textContent = `${sizeMB} MB`;
+    
+    preview.innerHTML = selectedVideos.map((file, index) => `
+        <div class="preview-item">
+            <video>
+                <source src="${URL.createObjectURL(file)}" type="${file.type}">
+            </video>
+            <button class="remove-preview" onclick="removeVideo(${index})">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function updateEditPhotoPreview() {
+    const preview = document.getElementById('edit-photo-preview');
+    const count = document.getElementById('edit-photo-count');
+    const size = document.getElementById('edit-photo-size');
+    
+    const totalSize = editSelectedPhotos.reduce((sum, file) => sum + file.size, 0);
+    const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+    
+    count.textContent = `${editSelectedPhotos.length} photos selected`;
+    size.textContent = `${sizeMB} MB`;
+    
+    preview.innerHTML = editSelectedPhotos.map((file, index) => `
+        <div class="preview-item">
+            <img src="${URL.createObjectURL(file)}" alt="Preview">
+            <button class="remove-preview" onclick="removeEditPhoto(${index})">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function updateEditVideoPreview() {
+    const preview = document.getElementById('edit-video-preview');
+    const count = document.getElementById('edit-video-count');
+    const size = document.getElementById('edit-video-size');
+    
+    const totalSize = editSelectedVideos.reduce((sum, file) => sum + file.size, 0);
+    const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+    
+    count.textContent = `${editSelectedVideos.length} videos selected`;
+    size.textContent = `${sizeMB} MB`;
+    
+    preview.innerHTML = editSelectedVideos.map((file, index) => `
+        <div class="preview-item">
+            <video>
+                <source src="${URL.createObjectURL(file)}" type="${file.type}">
+            </video>
+            <button class="remove-preview" onclick="removeEditVideo(${index})">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+// NEW: Remove file functions
+function removePhoto(index) {
+    selectedPhotos.splice(index, 1);
+    updatePhotoPreview();
+}
+
+function removeVideo(index) {
+    selectedVideos.splice(index, 1);
+    updateVideoPreview();
+}
+
+function removeEditPhoto(index) {
+    editSelectedPhotos.splice(index, 1);
+    updateEditPhotoPreview();
+}
+
+function removeEditVideo(index) {
+    editSelectedVideos.splice(index, 1);
+    updateEditVideoPreview();
+}
+
+// NEW: File to Base64 conversion
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+}
+
+// Post creation
 function openPostPopup() {
-    // Check cooldown
     checkCooldown().then(canPost => {
         if (canPost) {
             postPopup.classList.remove('hidden');
             setTimeout(() => postPopup.classList.add('active'), 10);
             document.getElementById('post-name').value = '';
             document.getElementById('post-description').value = '';
-            document.getElementById('photo-urls').value = '';
-            document.getElementById('video-urls').value = '';
+            
+            // Reset file selections
+            selectedPhotos = [];
+            selectedVideos = [];
+            updatePhotoPreview();
+            updateVideoPreview();
+            
             updateCharCounters();
         } else {
-            // Show notification if still in cooldown
             const remaining = getRemainingCooldown();
             if (remaining > 0) {
                 showCooldownNotification(remaining);
@@ -321,8 +525,6 @@ function updateEditCharCounters() {
 async function submitPost() {
     const name = document.getElementById('post-name').value.trim();
     const description = document.getElementById('post-description').value.trim();
-    const photoUrls = document.getElementById('photo-urls').value.split('\n').filter(url => url.trim());
-    const videoUrls = document.getElementById('video-urls').value.split('\n').filter(url => url.trim());
 
     // Validation
     if (!name) {
@@ -335,12 +537,12 @@ async function submitPost() {
         return;
     }
 
-    if (photoUrls.length === 0 && videoUrls.length === 0) {
-        alert('Please add at least one photo or video URL');
+    if (selectedPhotos.length === 0 && selectedVideos.length === 0) {
+        alert('Please add at least one photo or video');
         return;
     }
 
-    // Check cooldown - FIXED: Actually block posting during cooldown
+    // Check cooldown
     const canPost = await checkCooldown();
     if (!canPost) {
         const remaining = getRemainingCooldown();
@@ -348,19 +550,33 @@ async function submitPost() {
         return;
     }
 
-    // Create post object
-    const postData = {
-        name: name,
-        description: description,
-        photos: photoUrls,
-        videos: videoUrls,
-        userId: currentUserId,
-        timestamp: Date.now(),
-        edited: false
-    };
+    // Show loading state
+    const submitBtn = document.getElementById('submit-post');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading...';
 
-    // Save to Firebase
     try {
+        // Convert files to Base64
+        const photoPromises = selectedPhotos.map(file => fileToBase64(file));
+        const videoPromises = selectedVideos.map(file => fileToBase64(file));
+        
+        const [photoBase64, videoBase64] = await Promise.all([
+            Promise.all(photoPromises),
+            Promise.all(videoPromises)
+        ]);
+
+        // Create post object
+        const postData = {
+            name: name,
+            description: description,
+            photos: photoBase64,
+            videos: videoBase64,
+            userId: currentUserId,
+            timestamp: Date.now(),
+            edited: false
+        };
+
+        // Save to Firebase
         const newPostRef = push(postsRef);
         await set(newPostRef, postData);
         
@@ -368,22 +584,25 @@ async function submitPost() {
         await set(ref(db, `userCooldowns/${currentUserId}`), Date.now());
         
         closePostPopup();
-        updatePostButtonState(); // Update button state after posting
+        updatePostButtonState();
         
     } catch (error) {
         console.error('Error creating post:', error);
         alert('Failed to create post. Please try again.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Post';
     }
 }
 
-// Cooldown system - FIXED: Actually blocks posting
+// Cooldown system
 async function checkCooldown() {
     try {
         const cooldownSnap = await get(ref(db, `userCooldowns/${currentUserId}`));
         const lastPostTime = cooldownSnap.val();
         
         if (lastPostTime) {
-            const cooldownEnd = lastPostTime + (2 * 60 * 1000); // 2 minutes
+            const cooldownEnd = lastPostTime + (2 * 60 * 1000);
             if (Date.now() < cooldownEnd) {
                 return false;
             }
@@ -419,12 +638,10 @@ function updatePostButtonState() {
             const remaining = Math.ceil((cooldownEnd - Date.now()) / 1000);
             
             if (remaining > 0) {
-                // Still in cooldown - disable button and show timer
                 postBtn.disabled = true;
                 postBtn.classList.add('disabled');
                 startCooldownTimer(remaining);
             } else {
-                // Cooldown finished
                 postBtn.disabled = false;
                 postBtn.classList.remove('disabled');
                 postBtn.innerHTML = '<i class="fas fa-plus"></i> Post';
@@ -434,7 +651,6 @@ function updatePostButtonState() {
                 }
             }
         } else {
-            // No cooldown
             postBtn.disabled = false;
             postBtn.classList.remove('disabled');
             postBtn.innerHTML = '<i class="fas fa-plus"></i> Post';
@@ -480,15 +696,12 @@ async function openPostDetails(postId) {
     const post = currentPosts.find(p => p.id === postId);
     if (!post) return;
 
-    // Load reactions
     const reactions = await getReactions(postId);
 
-    // Update popup content
     document.getElementById('detail-post-name').textContent = post.name;
     document.getElementById('detail-post-date').textContent = formatDate(post.timestamp, true);
     document.getElementById('detail-post-description').textContent = post.description;
     
-    // Show edited badge if applicable
     const editedBadge = document.getElementById('detail-edited');
     if (post.edited) {
         editedBadge.classList.remove('hidden');
@@ -496,7 +709,6 @@ async function openPostDetails(postId) {
         editedBadge.classList.add('hidden');
     }
 
-    // NEW: Add delete button for user's own posts
     const deleteButton = document.getElementById('delete-post-btn');
     if (post.userId === currentUserId) {
         deleteButton.classList.remove('hidden');
@@ -505,17 +717,12 @@ async function openPostDetails(postId) {
         deleteButton.classList.add('hidden');
     }
 
-    // Load media
     loadMediaGallery(post.photos, 'photos-gallery', 'photo', postId);
     loadMediaGallery(post.videos, 'videos-gallery', 'video', postId);
 
-    // Update reactions
     updateReactionCounts(reactions);
-
-    // Set up reaction buttons
     setupReactionButtons(postId, reactions);
 
-    // Show popup
     postDetailsPopup.classList.remove('hidden');
     setTimeout(() => postDetailsPopup.classList.add('active'), 10);
 }
@@ -533,18 +740,18 @@ function loadMediaGallery(mediaArray, galleryId, mediaType, postId) {
         return;
     }
 
-    gallery.innerHTML = mediaArray.map((url, index) => {
+    gallery.innerHTML = mediaArray.map((base64, index) => {
         if (mediaType === 'photo') {
             return `
-                <div class="media-item" data-media-type="photo" data-url="${url}" data-post-id="${postId}">
-                    <img src="${url}" alt="Post photo" onerror="this.style.display='none'">
+                <div class="media-item" data-media-type="photo" data-url="${base64}" data-post-id="${postId}">
+                    <img src="${base64}" alt="Post photo">
                 </div>
             `;
         } else {
             return `
-                <div class="media-item" data-media-type="video" data-url="${url}" data-post-id="${postId}">
+                <div class="media-item" data-media-type="video" data-url="${base64}" data-post-id="${postId}">
                     <video controls>
-                        <source src="${url}" type="video/mp4">
+                        <source src="${base64}" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
                 </div>
@@ -552,10 +759,8 @@ function loadMediaGallery(mediaArray, galleryId, mediaType, postId) {
         }
     }).join('');
 
-    // Add click event for media zoom
     gallery.querySelectorAll('.media-item').forEach(item => {
         item.addEventListener('click', (e) => {
-            // Don't trigger if clicking video controls
             if (e.target.tagName === 'VIDEO' || e.target.tagName === 'SOURCE') return;
             
             const mediaType = item.getAttribute('data-media-type');
@@ -565,7 +770,7 @@ function loadMediaGallery(mediaArray, galleryId, mediaType, postId) {
     });
 }
 
-// NEW: Media zoom functionality
+// Media zoom functionality
 function openMediaZoom(url, mediaType) {
     const zoomMedia = document.getElementById('zoom-media');
     zoomMedia.innerHTML = '';
@@ -594,7 +799,6 @@ function closeMediaZoom() {
     mediaZoomPopup.classList.remove('active');
     setTimeout(() => {
         mediaZoomPopup.classList.add('hidden');
-        // Stop video playback
         const video = document.querySelector('#zoom-media video');
         if (video) {
             video.pause();
@@ -635,7 +839,6 @@ function setupReactionButtons(postId, reactions) {
         btn.classList.remove('active');
         btn.onclick = (e) => handleReaction(postId, e);
         
-        // Set active state for user's current reaction
         if (userReaction && btn.getAttribute('data-reaction') === userReaction.type) {
             btn.classList.add('active');
         }
@@ -647,12 +850,10 @@ async function handleReaction(postId, event) {
     const reactionRef = ref(db, `reactions/${postId}/${currentUserId}`);
     
     try {
-        // If clicking the same reaction type, remove it (toggle off)
         if (currentUserReaction === reactionType) {
             await remove(reactionRef);
             currentUserReaction = null;
         } else {
-            // Otherwise, set the new reaction (replaces any existing reaction)
             await set(reactionRef, {
                 type: reactionType,
                 timestamp: Date.now()
@@ -660,7 +861,6 @@ async function handleReaction(postId, event) {
             currentUserReaction = reactionType;
         }
         
-        // Reload reactions to update counts
         const updatedReactions = await getReactions(postId);
         updateReactionCounts(updatedReactions);
         setupReactionButtons(postId, updatedReactions);
@@ -670,21 +870,16 @@ async function handleReaction(postId, event) {
     }
 }
 
-// NEW: Delete post function
+// Delete post function
 async function deletePost(postId) {
     if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
         return;
     }
 
     try {
-        // Delete post
         await remove(ref(db, `posts/${postId}`));
-        // Delete reactions for this post
         await remove(ref(db, `reactions/${postId}`));
-        
-        // Close details popup if open
         closePostDetails();
-        
     } catch (error) {
         console.error('Error deleting post:', error);
         alert('Failed to delete post. Please try again.');
@@ -700,9 +895,13 @@ function openEditPopup(postId) {
     
     document.getElementById('edit-post-name').value = post.name;
     document.getElementById('edit-post-description').value = post.description;
-    document.getElementById('edit-photo-urls').value = post.photos ? post.photos.join('\n') : '';
-    document.getElementById('edit-video-urls').value = post.videos ? post.videos.join('\n') : '';
     updateEditCharCounters();
+    
+    // Reset edit file selections
+    editSelectedPhotos = [];
+    editSelectedVideos = [];
+    updateEditPhotoPreview();
+    updateEditVideoPreview();
     
     editPostPopup.classList.remove('hidden');
     setTimeout(() => editPostPopup.classList.add('active'), 10);
@@ -719,16 +918,30 @@ async function saveEdit() {
 
     const name = document.getElementById('edit-post-name').value.trim();
     const description = document.getElementById('edit-post-description').value.trim();
-    const photoUrls = document.getElementById('edit-photo-urls').value.split('\n').filter(url => url.trim());
-    const videoUrls = document.getElementById('edit-video-urls').value.split('\n').filter(url => url.trim());
 
     if (!name || !description) {
         alert('Please fill in all fields');
         return;
     }
 
-    if (photoUrls.length === 0 && videoUrls.length === 0) {
-        alert('Please add at least one photo or video URL');
+    // If no new files selected, keep existing media
+    const post = currentPosts.find(p => p.id === editingPostId);
+    let photoBase64 = post.photos || [];
+    let videoBase64 = post.videos || [];
+
+    // Convert new files if any
+    if (editSelectedPhotos.length > 0) {
+        const photoPromises = editSelectedPhotos.map(file => fileToBase64(file));
+        photoBase64 = await Promise.all(photoPromises);
+    }
+
+    if (editSelectedVideos.length > 0) {
+        const videoPromises = editSelectedVideos.map(file => fileToBase64(file));
+        videoBase64 = await Promise.all(videoPromises);
+    }
+
+    if (photoBase64.length === 0 && videoBase64.length === 0) {
+        alert('Please add at least one photo or video');
         return;
     }
 
@@ -736,8 +949,8 @@ async function saveEdit() {
         await update(ref(db, `posts/${editingPostId}`), {
             name: name,
             description: description,
-            photos: photoUrls,
-            videos: videoUrls,
+            photos: photoBase64,
+            videos: videoBase64,
             edited: true
         });
 
