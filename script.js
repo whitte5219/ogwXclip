@@ -38,7 +38,7 @@ let editingPostId = null;
 let cooldownInterval = null;
 let currentUserReaction = null;
 
-// NEW: File storage variables
+// File storage variables
 let selectedPhotos = [];
 let selectedVideos = [];
 let editSelectedPhotos = [];
@@ -110,7 +110,7 @@ function setupEventListeners() {
     document.getElementById('edit-post-name').addEventListener('input', updateEditCharCounters);
     document.getElementById('edit-post-description').addEventListener('input', updateEditCharCounters);
 
-    // NEW: File upload handlers
+    // File upload handlers
     document.getElementById('photo-upload').addEventListener('change', handlePhotoUpload);
     document.getElementById('video-upload').addEventListener('change', handleVideoUpload);
     document.getElementById('edit-photo-upload').addEventListener('change', handleEditPhotoUpload);
@@ -283,7 +283,7 @@ function applyFilters() {
     filtersPanel.classList.add('hidden');
 }
 
-// NEW: File upload functions
+// File upload functions
 function handlePhotoUpload(event) {
     const files = Array.from(event.target.files);
     const validFiles = files.filter(file => file.type.startsWith('image/'));
@@ -362,7 +362,7 @@ function handleEditVideoUpload(event) {
     updateEditVideoPreview();
 }
 
-// NEW: Preview update functions
+// Preview update functions
 function updatePhotoPreview() {
     const preview = document.getElementById('photo-preview');
     const count = document.getElementById('photo-count');
@@ -377,11 +377,20 @@ function updatePhotoPreview() {
     preview.innerHTML = selectedPhotos.map((file, index) => `
         <div class="preview-item">
             <img src="${URL.createObjectURL(file)}" alt="Preview">
-            <button class="remove-preview" onclick="removePhoto(${index})">
+            <button class="remove-preview" data-index="${index}">
                 <i class="fas fa-times"></i>
             </button>
         </div>
     `).join('');
+
+    // Add remove event listeners
+    preview.querySelectorAll('.remove-preview').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const index = parseInt(this.getAttribute('data-index'));
+            selectedPhotos.splice(index, 1);
+            updatePhotoPreview();
+        });
+    });
 }
 
 function updateVideoPreview() {
@@ -400,11 +409,20 @@ function updateVideoPreview() {
             <video>
                 <source src="${URL.createObjectURL(file)}" type="${file.type}">
             </video>
-            <button class="remove-preview" onclick="removeVideo(${index})">
+            <button class="remove-preview" data-index="${index}">
                 <i class="fas fa-times"></i>
             </button>
         </div>
     `).join('');
+
+    // Add remove event listeners
+    preview.querySelectorAll('.remove-preview').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const index = parseInt(this.getAttribute('data-index'));
+            selectedVideos.splice(index, 1);
+            updateVideoPreview();
+        });
+    });
 }
 
 function updateEditPhotoPreview() {
@@ -421,11 +439,20 @@ function updateEditPhotoPreview() {
     preview.innerHTML = editSelectedPhotos.map((file, index) => `
         <div class="preview-item">
             <img src="${URL.createObjectURL(file)}" alt="Preview">
-            <button class="remove-preview" onclick="removeEditPhoto(${index})">
+            <button class="remove-preview" data-index="${index}">
                 <i class="fas fa-times"></i>
             </button>
         </div>
     `).join('');
+
+    // Add remove event listeners
+    preview.querySelectorAll('.remove-preview').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const index = parseInt(this.getAttribute('data-index'));
+            editSelectedPhotos.splice(index, 1);
+            updateEditPhotoPreview();
+        });
+    });
 }
 
 function updateEditVideoPreview() {
@@ -444,35 +471,23 @@ function updateEditVideoPreview() {
             <video>
                 <source src="${URL.createObjectURL(file)}" type="${file.type}">
             </video>
-            <button class="remove-preview" onclick="removeEditVideo(${index})">
+            <button class="remove-preview" data-index="${index}">
                 <i class="fas fa-times"></i>
             </button>
         </div>
     `).join('');
+
+    // Add remove event listeners
+    preview.querySelectorAll('.remove-preview').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const index = parseInt(this.getAttribute('data-index'));
+            editSelectedVideos.splice(index, 1);
+            updateEditVideoPreview();
+        });
+    });
 }
 
-// NEW: Remove file functions
-function removePhoto(index) {
-    selectedPhotos.splice(index, 1);
-    updatePhotoPreview();
-}
-
-function removeVideo(index) {
-    selectedVideos.splice(index, 1);
-    updateVideoPreview();
-}
-
-function removeEditPhoto(index) {
-    editSelectedPhotos.splice(index, 1);
-    updateEditPhotoPreview();
-}
-
-function removeEditVideo(index) {
-    editSelectedVideos.splice(index, 1);
-    updateEditVideoPreview();
-}
-
-// NEW: File to Base64 conversion
+// File to Base64 conversion
 function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -595,7 +610,7 @@ async function submitPost() {
     }
 }
 
-// Cooldown system
+// Cooldown system - FIXED: Added timer display
 async function checkCooldown() {
     try {
         const cooldownSnap = await get(ref(db, `userCooldowns/${currentUserId}`));
@@ -638,10 +653,15 @@ function updatePostButtonState() {
             const remaining = Math.ceil((cooldownEnd - Date.now()) / 1000);
             
             if (remaining > 0) {
+                // Still in cooldown - disable button and show timer
                 postBtn.disabled = true;
                 postBtn.classList.add('disabled');
                 startCooldownTimer(remaining);
+                
+                // NEW: Show timer notification
+                showCooldownNotification(remaining);
             } else {
+                // Cooldown finished
                 postBtn.disabled = false;
                 postBtn.classList.remove('disabled');
                 postBtn.innerHTML = '<i class="fas fa-plus"></i> Post';
@@ -651,6 +671,7 @@ function updatePostButtonState() {
                 }
             }
         } else {
+            // No cooldown
             postBtn.disabled = false;
             postBtn.classList.remove('disabled');
             postBtn.innerHTML = '<i class="fas fa-plus"></i> Post';
@@ -676,6 +697,12 @@ function startCooldownTimer(remainingSeconds) {
         const minutes = Math.floor(remainingSeconds / 60);
         const seconds = remainingSeconds % 60;
         postBtn.innerHTML = `Wait ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Update notification if visible
+        if (!cooldownNotification.classList.contains('hidden')) {
+            document.getElementById('cooldown-message').textContent = 
+                `Please wait ${minutes}:${seconds.toString().padStart(2, '0')} before posting again`;
+        }
     }, 1000);
 }
 
@@ -691,7 +718,7 @@ function showCooldownNotification(remainingSeconds) {
     }, 5000);
 }
 
-// Post details
+// Post details - FIXED: View details now works
 async function openPostDetails(postId) {
     const post = currentPosts.find(p => p.id === postId);
     if (!post) return;
@@ -886,7 +913,7 @@ async function deletePost(postId) {
     }
 }
 
-// Edit post system
+// Edit post system - FIXED: Now shows existing media in edit
 function openEditPopup(postId) {
     const post = currentPosts.find(p => p.id === postId);
     if (!post || post.userId !== currentUserId) return;
@@ -897,11 +924,61 @@ function openEditPopup(postId) {
     document.getElementById('edit-post-description').value = post.description;
     updateEditCharCounters();
     
-    // Reset edit file selections
+    // NEW: Show existing media in edit preview
+    const existingPhotos = post.photos || [];
+    const existingVideos = post.videos || [];
+    
+    // Convert existing Base64 to preview items
+    const editPhotoPreview = document.getElementById('edit-photo-preview');
+    const editVideoPreview = document.getElementById('edit-video-preview');
+    
+    editPhotoPreview.innerHTML = existingPhotos.map((base64, index) => `
+        <div class="preview-item">
+            <img src="${base64}" alt="Existing photo">
+            <button class="remove-preview existing-media" data-index="${index}" data-type="existing">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+    
+    editVideoPreview.innerHTML = existingVideos.map((base64, index) => `
+        <div class="preview-item">
+            <video>
+                <source src="${base64}" type="video/mp4">
+            </video>
+            <button class="remove-preview existing-media" data-index="${index}" data-type="existing">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+    
+    // Update counts for existing media
+    document.getElementById('edit-photo-count').textContent = `${existingPhotos.length} photos selected`;
+    document.getElementById('edit-video-count').textContent = `${existingVideos.length} videos selected`;
+    
+    // Store existing media for saving
     editSelectedPhotos = [];
     editSelectedVideos = [];
-    updateEditPhotoPreview();
-    updateEditVideoPreview();
+    
+    // Add remove listeners for existing media
+    document.querySelectorAll('.existing-media').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const index = parseInt(this.getAttribute('data-index'));
+            const type = this.getAttribute('data-type');
+            
+            if (type === 'existing') {
+                // Remove from preview (we'll handle this in save by not including removed items)
+                this.closest('.preview-item').remove();
+                
+                // Update counts
+                const remainingPhotos = document.querySelectorAll('#edit-photo-preview .preview-item').length;
+                const remainingVideos = document.querySelectorAll('#edit-video-preview .preview-item').length;
+                
+                document.getElementById('edit-photo-count').textContent = `${remainingPhotos} photos selected`;
+                document.getElementById('edit-video-count').textContent = `${remainingVideos} videos selected`;
+            }
+        });
+    });
     
     editPostPopup.classList.remove('hidden');
     setTimeout(() => editPostPopup.classList.add('active'), 10);
@@ -924,33 +1001,37 @@ async function saveEdit() {
         return;
     }
 
-    // If no new files selected, keep existing media
-    const post = currentPosts.find(p => p.id === editingPostId);
-    let photoBase64 = post.photos || [];
-    let videoBase64 = post.videos || [];
-
-    // Convert new files if any
-    if (editSelectedPhotos.length > 0) {
-        const photoPromises = editSelectedPhotos.map(file => fileToBase64(file));
-        photoBase64 = await Promise.all(photoPromises);
-    }
-
-    if (editSelectedVideos.length > 0) {
-        const videoPromises = editSelectedVideos.map(file => fileToBase64(file));
-        videoBase64 = await Promise.all(videoPromises);
-    }
-
-    if (photoBase64.length === 0 && videoBase64.length === 0) {
-        alert('Please add at least one photo or video');
-        return;
-    }
-
     try {
+        // Get existing media that wasn't removed
+        const existingPhotoPreviews = document.querySelectorAll('#edit-photo-preview .preview-item img');
+        const existingVideoPreviews = document.querySelectorAll('#edit-video-preview .preview-item video source');
+        
+        const existingPhotos = Array.from(existingPhotoPreviews).map(img => img.src);
+        const existingVideos = Array.from(existingVideoPreviews).map(source => source.src);
+        
+        // Convert new files to Base64
+        const newPhotoPromises = editSelectedPhotos.map(file => fileToBase64(file));
+        const newVideoPromises = editSelectedVideos.map(file => fileToBase64(file));
+        
+        const [newPhotosBase64, newVideosBase64] = await Promise.all([
+            Promise.all(newPhotoPromises),
+            Promise.all(newVideoPromises)
+        ]);
+
+        // Combine existing and new media
+        const allPhotos = [...existingPhotos, ...newPhotosBase64];
+        const allVideos = [...existingVideos, ...newVideosBase64];
+
+        if (allPhotos.length === 0 && allVideos.length === 0) {
+            alert('Please add at least one photo or video');
+            return;
+        }
+
         await update(ref(db, `posts/${editingPostId}`), {
             name: name,
             description: description,
-            photos: photoBase64,
-            videos: videoBase64,
+            photos: allPhotos,
+            videos: allVideos,
             edited: true
         });
 
