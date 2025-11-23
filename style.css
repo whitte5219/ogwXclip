@@ -222,7 +222,7 @@ nav a.active {
     box-shadow: var(--shadow);
     transition: var(--transition);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    position: relative; /* For delete button positioning */
+    position: relative;
 }
 
 .post-card:hover {
@@ -231,7 +231,7 @@ nav a.active {
     border-color: rgba(74, 144, 226, 0.3);
 }
 
-/* FIXED: Delete button in top right corner */
+/* Delete button in top right corner */
 .post-header {
     display: flex;
     justify-content: space-between;
@@ -246,7 +246,7 @@ nav a.active {
     color: var(--accent);
     margin-bottom: 5px;
     flex: 1;
-    padding-right: 30px; /* Make space for delete button */
+    padding-right: 30px;
 }
 
 .delete-post-btn {
@@ -415,6 +415,85 @@ nav a.active {
     margin-top: 5px;
 }
 
+/* NEW: File Upload Styles */
+.file-upload-area {
+    text-align: center;
+    padding: 25px;
+    background: rgba(255,255,255,0.03);
+    border: 2px dashed rgba(255,255,255,0.1);
+    border-radius: 8px;
+    transition: var(--transition);
+    margin-bottom: 15px;
+}
+
+.file-upload-area:hover {
+    border-color: var(--accent);
+}
+
+.file-upload-area i {
+    font-size: 2.5rem;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+.file-upload-area p {
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+}
+
+.file-info {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.media-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.preview-item {
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.05);
+}
+
+.preview-item img,
+.preview-item video {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+    display: block;
+}
+
+.remove-preview {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.7rem;
+    opacity: 0;
+    transition: var(--transition);
+}
+
+.preview-item:hover .remove-preview {
+    opacity: 1;
+}
+
 /* Media Tabs */
 .media-tabs {
     margin: 20px 0;
@@ -452,33 +531,6 @@ nav a.active {
 .tab-content.active {
     display: block;
     animation: fadeIn 0.3s ease;
-}
-
-.media-upload-area {
-    text-align: center;
-    padding: 30px;
-    background: rgba(255,255,255,0.03);
-    border: 2px dashed rgba(255,255,255,0.1);
-    border-radius: 8px;
-    transition: var(--transition);
-}
-
-.media-upload-area:hover {
-    border-color: var(--accent);
-}
-
-.media-upload-area i {
-    font-size: 2.5rem;
-    color: var(--text-secondary);
-    margin-bottom: 10px;
-}
-
-.media-upload-area textarea {
-    width: 100%;
-    height: 100px;
-    margin-top: 15px;
-    font-family: monospace;
-    font-size: 0.9rem;
 }
 
 /* Media Gallery */
@@ -692,6 +744,11 @@ nav a.active {
         flex-direction: column;
         align-items: flex-start;
     }
+
+    .file-info {
+        flex-direction: column;
+        gap: 5px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -717,5 +774,9 @@ nav a.active {
         width: 24px;
         height: 24px;
         font-size: 0.7rem;
+    }
+
+    .media-preview-grid {
+        grid-template-columns: repeat(4, 1fr);
     }
 }
