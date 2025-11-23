@@ -88,7 +88,7 @@
 
     <!-- Post Creation Popup -->
     <div id="post-popup" class="popup-overlay hidden">
-        <div class="popup-dialog" style="max-width: 600px;">
+        <div class="popup-dialog" style="max-width: 700px;">
             <div class="popup-header">
                 <h3>Create New Post</h3>
             </div>
@@ -112,23 +112,37 @@
                     </div>
                     
                     <div id="photos-tab" class="tab-content active">
-                        <div class="media-upload-area" id="photos-upload">
-                            <i class="fas fa-images"></i>
-                            <p>Add photo URLs (one per line)</p>
-                            <textarea id="photo-urls" placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg"></textarea>
+                        <div class="file-upload-area">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Click to select photos (max 2MB each)</p>
+                            <input type="file" id="photo-upload" multiple accept="image/*" style="display: none;">
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('photo-upload').click()">
+                                <i class="fas fa-folder-open"></i> Select Photos
+                            </button>
+                            <div class="file-info">
+                                <span id="photo-count">0 photos selected</span>
+                                <span id="photo-size">0 MB</span>
+                            </div>
+                            <div id="photo-preview" class="media-preview-grid"></div>
                         </div>
                     </div>
                     
                     <div id="videos-tab" class="tab-content">
-                        <div class="media-upload-area" id="videos-upload">
-                            <i class="fas fa-video"></i>
-                            <p>Add video URLs (one per line)</p>
-                            <textarea id="video-urls" placeholder="https://example.com/video1.mp4&#10;https://example.com/video2.mp4"></textarea>
+                        <div class="file-upload-area">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Click to select videos (max 5MB each)</p>
+                            <input type="file" id="video-upload" multiple accept="video/*" style="display: none;">
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('video-upload').click()">
+                                <i class="fas fa-folder-open"></i> Select Videos
+                            </button>
+                            <div class="file-info">
+                                <span id="video-count">0 videos selected</span>
+                                <span id="video-size">0 MB</span>
+                            </div>
+                            <div id="video-preview" class="media-preview-grid"></div>
                         </div>
                     </div>
                 </div>
-
-                <div class="media-preview" id="media-preview"></div>
             </div>
             <div class="popup-buttons">
                 <button class="popup-btn cancel" id="cancel-post">Cancel</button>
@@ -187,7 +201,7 @@
 
     <!-- Edit Post Popup -->
     <div id="edit-post-popup" class="popup-overlay hidden">
-        <div class="popup-dialog" style="max-width: 600px;">
+        <div class="popup-dialog" style="max-width: 700px;">
             <div class="popup-header">
                 <h3>Edit Post</h3>
             </div>
@@ -211,18 +225,34 @@
                     </div>
                     
                     <div id="edit-photos-tab" class="tab-content active">
-                        <div class="media-upload-area">
-                            <i class="fas fa-images"></i>
-                            <p>Edit photo URLs (one per line)</p>
-                            <textarea id="edit-photo-urls" placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg"></textarea>
+                        <div class="file-upload-area">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Click to select photos (max 2MB each)</p>
+                            <input type="file" id="edit-photo-upload" multiple accept="image/*" style="display: none;">
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('edit-photo-upload').click()">
+                                <i class="fas fa-folder-open"></i> Select Photos
+                            </button>
+                            <div class="file-info">
+                                <span id="edit-photo-count">0 photos selected</span>
+                                <span id="edit-photo-size">0 MB</span>
+                            </div>
+                            <div id="edit-photo-preview" class="media-preview-grid"></div>
                         </div>
                     </div>
                     
                     <div id="edit-videos-tab" class="tab-content">
-                        <div class="media-upload-area">
-                            <i class="fas fa-video"></i>
-                            <p>Edit video URLs (one per line)</p>
-                            <textarea id="edit-video-urls" placeholder="https://example.com/video1.mp4&#10;https://example.com/video2.mp4"></textarea>
+                        <div class="file-upload-area">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Click to select videos (max 5MB each)</p>
+                            <input type="file" id="edit-video-upload" multiple accept="video/*" style="display: none;">
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('edit-video-upload').click()">
+                                <i class="fas fa-folder-open"></i> Select Videos
+                            </button>
+                            <div class="file-info">
+                                <span id="edit-video-count">0 videos selected</span>
+                                <span id="edit-video-size">0 MB</span>
+                            </div>
+                            <div id="edit-video-preview" class="media-preview-grid"></div>
                         </div>
                     </div>
                 </div>
