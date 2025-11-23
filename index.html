@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ogwXclip - Media Sharing Platform</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-video"></i>
+                <h1>ogwXclip</h1>
+            </div>
+            
+            <nav>
+                <ul>
+                    <li><a href="#" class="nav-link" id="post-btn">Post</a></li>
+                    <li><a href="#" class="nav-link" id="search-btn">Search</a></li>
+                    <li><a href="#" class="nav-link" id="your-posts-btn">Your Posts</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="dashboard-container">
+        <!-- Search Section -->
+        <div id="search-section" class="content-section active">
+            <div class="search-controls">
+                <div class="search-bar">
+                    <input type="text" id="search-input" placeholder="Search clips by name...">
+                    <button class="btn" id="search-submit">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+                <button class="btn btn-secondary" id="filter-btn">
+                    <i class="fas fa-filter"></i> Filters
+                </button>
+            </div>
+
+            <!-- Filters Panel -->
+            <div id="filters-panel" class="filters-panel hidden">
+                <div class="filter-group">
+                    <label>Before Date:</label>
+                    <input type="datetime-local" id="filter-before">
+                </div>
+                <div class="filter-group">
+                    <label>After Date:</label>
+                    <input type="datetime-local" id="filter-after">
+                </div>
+                <div class="filter-group">
+                    <label>Media Type:</label>
+                    <select id="filter-type">
+                        <option value="all">All</option>
+                        <option value="photo">Photos Only</option>
+                        <option value="video">Videos Only</option>
+                    </select>
+                </div>
+                <button class="btn" id="apply-filters">Apply Filters</button>
+            </div>
+
+            <!-- Search Results -->
+            <div id="search-results" class="posts-grid">
+                <div class="empty-state">
+                    <i class="fas fa-search"></i>
+                    <h3>Search for Clips</h3>
+                    <p>Use the search bar above to find clips or browse all content.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Your Posts Section -->
+        <div id="your-posts-section" class="content-section">
+            <h2>Your Posts</h2>
+            <div id="user-posts" class="posts-grid">
+                <div class="empty-state">
+                    <i class="fas fa-user"></i>
+                    <h3>No Posts Yet</h3>
+                    <p>You haven't posted any clips yet. Click "Post" to share your first clip!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Post Creation Popup -->
+    <div id="post-popup" class="popup-overlay hidden">
+        <div class="popup-dialog" style="max-width: 600px;">
+            <div class="popup-header">
+                <h3>Create New Post</h3>
+            </div>
+            <div class="popup-body">
+                <div class="form-group">
+                    <label for="post-name">Name (max 75 characters)</label>
+                    <input type="text" id="post-name" maxlength="75" placeholder="Enter post name...">
+                    <div class="char-counter"><span id="name-chars">0</span>/75</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="post-description">Description (max 1500 characters)</label>
+                    <textarea id="post-description" maxlength="1500" rows="4" placeholder="Enter description..."></textarea>
+                    <div class="char-counter"><span id="desc-chars">0</span>/1500</div>
+                </div>
+
+                <div class="media-tabs">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" data-tab="photos">Photos</button>
+                        <button class="tab-btn" data-tab="videos">Videos</button>
+                    </div>
+                    
+                    <div id="photos-tab" class="tab-content active">
+                        <div class="media-upload-area" id="photos-upload">
+                            <i class="fas fa-images"></i>
+                            <p>Add photo URLs (one per line)</p>
+                            <textarea id="photo-urls" placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div id="videos-tab" class="tab-content">
+                        <div class="media-upload-area" id="videos-upload">
+                            <i class="fas fa-video"></i>
+                            <p>Add video URLs (one per line)</p>
+                            <textarea id="video-urls" placeholder="https://example.com/video1.mp4&#10;https://example.com/video2.mp4"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="media-preview" id="media-preview"></div>
+            </div>
+            <div class="popup-buttons">
+                <button class="popup-btn cancel" id="cancel-post">Cancel</button>
+                <button class="popup-btn confirm" id="submit-post">Post</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Post Details Popup -->
+    <div id="post-details-popup" class="popup-overlay hidden">
+        <div class="popup-dialog" style="max-width: 90%; max-height: 90vh;">
+            <div class="popup-header">
+                <h3 id="detail-post-name">Post Name</h3>
+                <button id="close-details" class="close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="popup-body">
+                <div class="post-meta">
+                    <span id="detail-post-date">Date</span>
+                    <span id="detail-edited" class="edited-badge hidden">(post was edited)</span>
+                </div>
+                <p id="detail-post-description" class="post-description"></p>
+                
+                <div class="media-tabs">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" data-tab="detail-photos">Photos</button>
+                        <button class="tab-btn" data-tab="detail-videos">Videos</button>
+                    </div>
+                    
+                    <div id="detail-photos-tab" class="tab-content active">
+                        <div class="media-gallery" id="photos-gallery"></div>
+                    </div>
+                    
+                    <div id="detail-videos-tab" class="tab-content">
+                        <div class="media-gallery" id="videos-gallery"></div>
+                    </div>
+                </div>
+
+                <div class="reactions">
+                    <button class="reaction-btn" data-reaction="like">
+                        <i class="fas fa-thumbs-up"></i>
+                        <span id="like-count">0</span>
+                    </button>
+                    <button class="reaction-btn" data-reaction="dislike">
+                        <i class="fas fa-thumbs-down"></i>
+                        <span id="dislike-count">0</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Post Popup -->
+    <div id="edit-post-popup" class="popup-overlay hidden">
+        <div class="popup-dialog" style="max-width: 600px;">
+            <div class="popup-header">
+                <h3>Edit Post</h3>
+            </div>
+            <div class="popup-body">
+                <div class="form-group">
+                    <label for="edit-post-name">Name</label>
+                    <input type="text" id="edit-post-name" maxlength="75">
+                    <div class="char-counter"><span id="edit-name-chars">0</span>/75</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-post-description">Description</label>
+                    <textarea id="edit-post-description" maxlength="1500" rows="4"></textarea>
+                    <div class="char-counter"><span id="edit-desc-chars">0</span>/1500</div>
+                </div>
+            </div>
+            <div class="popup-buttons">
+                <button class="popup-btn cancel" id="cancel-edit">Cancel</button>
+                <button class="popup-btn confirm" id="save-edit">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cooldown Notification -->
+    <div id="cooldown-notification" class="notification hidden">
+        <i class="fas fa-clock"></i>
+        <span id="cooldown-message"></span>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
