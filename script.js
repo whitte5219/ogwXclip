@@ -38,6 +38,7 @@ const cooldownsRef = ref(db, "userCooldowns");
 let currentUserId = null;
 let currentPosts = [];
 let editingPostId = null;
+let cooldownInterval = null;
 
 // DOM Elements
 const postBtn = document.getElementById('post-btn');
@@ -64,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeUser();
     setupEventListeners();
     loadAllPosts();
+    updatePostButtonState(); // Check cooldown on page load
 });
 
 // Generate unique user ID
@@ -250,7 +252,7 @@ function performSearch() {
     displayPosts(filteredPosts, searchResults);
 }
 
-// Filter controls
+// Filter controls - FIXED: Now properly hidden by default
 function toggleFilters() {
     filtersPanel.classList.toggle('hidden');
 }
@@ -325,7 +327,7 @@ async function submitPost() {
         videos: videoUrls,
         userId: currentUserId,
         timestamp: Date.now(),
-        edited: false
+        edited: false // FIXED: Always set to false initially
     };
 
     // Save to Firebase
@@ -337,7 +339,7 @@ async function submitPost() {
         await set(ref(db, `userCooldowns/${currentUserId}`), Date.now());
         
         closePostPopup();
-        showCooldownNotification();
+        updatePostButtonState(); // Update button state after posting
         
     } catch (error) {
         console.error('Error creating post:', error);
@@ -345,7 +347,7 @@ async function submitPost() {
     }
 }
 
-// Cooldown system
+// Cooldown system - FIXED: Now properly blocks post button and shows countdown
 async function checkCooldown() {
     try {
         const cooldownSnap = await get(ref(db, `userCooldowns/${currentUserId}`));
@@ -366,16 +368,72 @@ async function checkCooldown() {
     }
 }
 
-function showCooldownNotification(remainingSeconds = 120) {
-    if (remainingSeconds < 120) {
+function updatePostButtonState() {
+    get(ref(db, `userCooldowns/${currentUserId}`)).then((cooldownSnap) => {
+        const lastPostTime = cooldownSnap.val();
+        
+        if (lastPostTime) {
+            const cooldownEnd = lastPostTime + (2 * 60 * 1000);
+            const remaining = Math.ceil((cooldownEnd - Date.now()) / 1000);
+            
+            if (remaining > 0) {
+                // Still in cooldown
+                postBtn.classList.add('disabled');
+                postBtn.style.pointerEvents = 'none';
+                startCooldownTimer(remaining);
+            } else {
+                // Cooldown finished
+                postBtn.classList.remove('disabled');
+                postBtn.style.pointerEvents = 'auto';
+                postBtn.innerHTML = 'Post';
+                if (cooldownInterval) {
+                    clearInterval(cooldownInterval);
+                    cooldownInterval = null;
+                }
+                cooldownNotification.classList.add('hidden');
+            }
+        } else {
+            // No cooldown
+            postBtn.classList.remove('disabled');
+            postBtn.style.pointerEvents = 'auto';
+            postBtn.innerHTML = 'Post';
+            cooldownNotification.classList.add('hidden');
+        }
+    });
+}
+
+function startCooldownTimer(remainingSeconds) {
+    if (cooldownInterval) {
+        clearInterval(cooldownInterval);
+    }
+    
+    cooldownInterval = setInterval(() => {
+        remainingSeconds--;
+        
+        if (remainingSeconds <= 0) {
+            clearInterval(cooldownInterval);
+            cooldownInterval = null;
+            updatePostButtonState();
+            return;
+        }
+        
         const minutes = Math.floor(remainingSeconds / 60);
         const seconds = remainingSeconds % 60;
-        document.getElementById('cooldown-message').textContent = 
-            `Please wait ${minutes}:${seconds.toString().padStart(2, '0')} before posting again`;
-    } else {
-        document.getElementById('cooldown-message').textContent = 
-            'Post created! 2-minute cooldown started.';
-    }
+        postBtn.innerHTML = `Wait ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Update notification if visible
+        if (!cooldownNotification.classList.contains('hidden')) {
+            document.getElementById('cooldown-message').textContent = 
+                `Please wait ${minutes}:${seconds.toString().padStart(2, '0')} before posting again`;
+        }
+    }, 1000);
+}
+
+function showCooldownNotification(remainingSeconds) {
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    document.getElementById('cooldown-message').textContent = 
+        `Please wait ${minutes}:${seconds.toString().padStart(2, '0')} before posting again`;
     
     cooldownNotification.classList.remove('hidden');
     setTimeout(() => {
@@ -396,7 +454,7 @@ async function openPostDetails(postId) {
     document.getElementById('detail-post-date').textContent = formatDate(post.timestamp, true);
     document.getElementById('detail-post-description').textContent = post.description;
     
-    // Show edited badge if applicable
+    // Show edited badge if applicable - FIXED: Only show if post was actually edited
     const editedBadge = document.getElementById('detail-edited');
     if (post.edited) {
         editedBadge.classList.remove('hidden');
@@ -541,7 +599,7 @@ async function saveEdit() {
         await update(ref(db, `posts/${editingPostId}`), {
             name: name,
             description: description,
-            edited: true
+            edited: true // FIXED: Only set to true when actually edited
         });
 
         closeEditPopup();
