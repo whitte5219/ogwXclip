@@ -18,7 +18,7 @@
             
             <nav>
                 <ul>
-                    <li><a href="#" class="nav-link" id="post-btn">Post</a></li>
+                    <li><a href="#" class="nav-link" id="post-btn"><i class="fas fa-plus"></i> Post</a></li>
                     <li><a href="#" class="nav-link" id="search-btn">Search</a></li>
                     <li><a href="#" class="nav-link" id="your-posts-btn">Your Posts</a></li>
                 </ul>
@@ -177,6 +177,9 @@
                         <i class="fas fa-thumbs-down"></i>
                         <span id="dislike-count">0</span>
                     </button>
+                    <button class="btn btn-danger hidden" id="delete-post-btn">
+                        <i class="fas fa-trash"></i> Delete Post
+                    </button>
                 </div>
             </div>
         </div>
@@ -200,10 +203,48 @@
                     <textarea id="edit-post-description" maxlength="1500" rows="4"></textarea>
                     <div class="char-counter"><span id="edit-desc-chars">0</span>/1500</div>
                 </div>
+
+                <div class="media-tabs">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" data-tab="edit-photos">Photos</button>
+                        <button class="tab-btn" data-tab="edit-videos">Videos</button>
+                    </div>
+                    
+                    <div id="edit-photos-tab" class="tab-content active">
+                        <div class="media-upload-area">
+                            <i class="fas fa-images"></i>
+                            <p>Edit photo URLs (one per line)</p>
+                            <textarea id="edit-photo-urls" placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div id="edit-videos-tab" class="tab-content">
+                        <div class="media-upload-area">
+                            <i class="fas fa-video"></i>
+                            <p>Edit video URLs (one per line)</p>
+                            <textarea id="edit-video-urls" placeholder="https://example.com/video1.mp4&#10;https://example.com/video2.mp4"></textarea>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="popup-buttons">
                 <button class="popup-btn cancel" id="cancel-edit">Cancel</button>
                 <button class="popup-btn confirm" id="save-edit">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Media Zoom Popup -->
+    <div id="media-zoom-popup" class="popup-overlay hidden">
+        <div class="popup-dialog" style="max-width: 95%; max-height: 95vh;">
+            <div class="popup-header">
+                <h3>Media View</h3>
+                <button id="close-zoom" class="close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="popup-body">
+                <div id="zoom-media" class="zoom-media-container"></div>
             </div>
         </div>
     </div>
