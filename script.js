@@ -65,12 +65,18 @@ const editPostPopup = document.getElementById('edit-post-popup');
 const cooldownNotification = document.getElementById('cooldown-notification');
 const mediaZoomPopup = document.getElementById('media-zoom-popup');
 
+// NEW: Cooldown timer display element
+let cooldownTimerElement = null;
+
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
     initializeUser();
     setupEventListeners();
     loadAllPosts();
     updatePostButtonState();
+    
+    // NEW: Create cooldown timer display
+    createCooldownTimer();
 });
 
 // Generate unique user ID
@@ -80,6 +86,18 @@ function initializeUser() {
         currentUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('ogwXclip_userId', currentUserId);
     }
+}
+
+// NEW: Create cooldown timer display
+function createCooldownTimer() {
+    cooldownTimerElement = document.createElement('div');
+    cooldownTimerElement.id = 'cooldown-timer';
+    cooldownTimerElement.className = 'cooldown-timer hidden';
+    cooldownTimerElement.innerHTML = `
+        <i class="fas fa-clock"></i>
+        <span id="cooldown-timer-text">Wait 2:00</span>
+    `;
+    document.body.appendChild(cooldownTimerElement);
 }
 
 // Event listeners setup
@@ -497,7 +515,7 @@ function fileToBase64(file) {
     });
 }
 
-// Post creation
+// Post creation - FIXED: Uploading screen no longer gets stuck
 function openPostPopup() {
     checkCooldown().then(canPost => {
         if (canPost) {
@@ -511,6 +529,11 @@ function openPostPopup() {
             selectedVideos = [];
             updatePhotoPreview();
             updateVideoPreview();
+            
+            // NEW: Reset submit button state
+            const submitBtn = document.getElementById('submit-post');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Post';
             
             updateCharCounters();
         } else {
@@ -598,19 +621,24 @@ async function submitPost() {
         // Set cooldown
         await set(ref(db, `userCooldowns/${currentUserId}`), Date.now());
         
+        // FIXED: Close popup and reset button BEFORE updating state
         closePostPopup();
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Post';
+        
         updatePostButtonState();
         
     } catch (error) {
         console.error('Error creating post:', error);
         alert('Failed to create post. Please try again.');
-    } finally {
+        
+        // FIXED: Always reset button state on error too
         submitBtn.disabled = false;
         submitBtn.textContent = 'Post';
     }
 }
 
-// Cooldown system - FIXED: Added timer display
+// Cooldown system - FIXED: Timer now properly shows and updates
 async function checkCooldown() {
     try {
         const cooldownSnap = await get(ref(db, `userCooldowns/${currentUserId}`));
@@ -656,15 +684,20 @@ function updatePostButtonState() {
                 // Still in cooldown - disable button and show timer
                 postBtn.disabled = true;
                 postBtn.classList.add('disabled');
-                startCooldownTimer(remaining);
                 
-                // NEW: Show timer notification
-                showCooldownNotification(remaining);
+                // NEW: Show the cooldown timer display
+                cooldownTimerElement.classList.remove('hidden');
+                
+                startCooldownTimer(remaining);
             } else {
                 // Cooldown finished
                 postBtn.disabled = false;
                 postBtn.classList.remove('disabled');
                 postBtn.innerHTML = '<i class="fas fa-plus"></i> Post';
+                
+                // NEW: Hide the cooldown timer display
+                cooldownTimerElement.classList.add('hidden');
+                
                 if (cooldownInterval) {
                     clearInterval(cooldownInterval);
                     cooldownInterval = null;
@@ -675,6 +708,9 @@ function updatePostButtonState() {
             postBtn.disabled = false;
             postBtn.classList.remove('disabled');
             postBtn.innerHTML = '<i class="fas fa-plus"></i> Post';
+            
+            // NEW: Hide the cooldown timer display
+            cooldownTimerElement.classList.add('hidden');
         }
     });
 }
@@ -683,6 +719,9 @@ function startCooldownTimer(remainingSeconds) {
     if (cooldownInterval) {
         clearInterval(cooldownInterval);
     }
+    
+    // NEW: Update timer display immediately
+    updateCooldownTimerDisplay(remainingSeconds);
     
     cooldownInterval = setInterval(() => {
         remainingSeconds--;
@@ -698,12 +737,23 @@ function startCooldownTimer(remainingSeconds) {
         const seconds = remainingSeconds % 60;
         postBtn.innerHTML = `Wait ${minutes}:${seconds.toString().padStart(2, '0')}`;
         
+        // NEW: Update the timer display
+        updateCooldownTimerDisplay(remainingSeconds);
+        
         // Update notification if visible
         if (!cooldownNotification.classList.contains('hidden')) {
             document.getElementById('cooldown-message').textContent = 
                 `Please wait ${minutes}:${seconds.toString().padStart(2, '0')} before posting again`;
         }
     }, 1000);
+}
+
+// NEW: Update the cooldown timer display
+function updateCooldownTimerDisplay(remainingSeconds) {
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    document.getElementById('cooldown-timer-text').textContent = 
+        `Wait ${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 function showCooldownNotification(remainingSeconds) {
@@ -718,7 +768,7 @@ function showCooldownNotification(remainingSeconds) {
     }, 5000);
 }
 
-// Post details - FIXED: View details now works
+// Post details
 async function openPostDetails(postId) {
     const post = currentPosts.find(p => p.id === postId);
     if (!post) return;
@@ -913,7 +963,7 @@ async function deletePost(postId) {
     }
 }
 
-// Edit post system - FIXED: Now shows existing media in edit
+// Edit post system
 function openEditPopup(postId) {
     const post = currentPosts.find(p => p.id === postId);
     if (!post || post.userId !== currentUserId) return;
@@ -924,7 +974,7 @@ function openEditPopup(postId) {
     document.getElementById('edit-post-description').value = post.description;
     updateEditCharCounters();
     
-    // NEW: Show existing media in edit preview
+    // Show existing media in edit preview
     const existingPhotos = post.photos || [];
     const existingVideos = post.videos || [];
     
