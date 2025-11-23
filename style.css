@@ -415,7 +415,7 @@ nav a.active {
     margin-top: 5px;
 }
 
-/* NEW: File Upload Styles */
+/* File Upload Styles */
 .file-upload-area {
     text-align: center;
     padding: 25px;
@@ -471,6 +471,7 @@ nav a.active {
     display: block;
 }
 
+/* FIXED: Smaller remove button */
 .remove-preview {
     position: absolute;
     top: 2px;
@@ -479,13 +480,13 @@ nav a.active {
     color: white;
     border: none;
     border-radius: 50%;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 0.7rem;
+    font-size: 0.6rem;
     opacity: 0;
     transition: var(--transition);
 }
