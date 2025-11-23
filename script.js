@@ -6,6 +6,7 @@ import {
     set, 
     get, 
     update, 
+    remove,
     onValue,
     query,
     orderByChild,
@@ -39,6 +40,7 @@ let currentUserId = null;
 let currentPosts = [];
 let editingPostId = null;
 let cooldownInterval = null;
+let currentUserReaction = null;
 
 // DOM Elements
 const postBtn = document.getElementById('post-btn');
@@ -59,6 +61,7 @@ const postPopup = document.getElementById('post-popup');
 const postDetailsPopup = document.getElementById('post-details-popup');
 const editPostPopup = document.getElementById('edit-post-popup');
 const cooldownNotification = document.getElementById('cooldown-notification');
+const mediaZoomPopup = document.getElementById('media-zoom-popup');
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
@@ -119,6 +122,9 @@ function setupEventListeners() {
     // Edit post
     document.getElementById('cancel-edit').addEventListener('click', closeEditPopup);
     document.getElementById('save-edit').addEventListener('click', saveEdit);
+
+    // Media zoom
+    document.getElementById('close-zoom').addEventListener('click', closeMediaZoom);
 }
 
 // Show/hide sections
@@ -188,6 +194,9 @@ function displayPosts(posts, container) {
                     <button class="btn btn-secondary edit-post-btn">
                         <i class="fas fa-edit"></i> Edit
                     </button>
+                    <button class="btn btn-danger delete-post-btn">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
                 ` : ''}
             </div>
         </div>
@@ -205,6 +214,14 @@ function displayPosts(posts, container) {
         btn.addEventListener('click', (e) => {
             const postId = e.target.closest('.post-card').getAttribute('data-post-id');
             openEditPopup(postId);
+        });
+    });
+
+    // NEW: Delete post buttons
+    container.querySelectorAll('.delete-post-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const postId = e.target.closest('.post-card').getAttribute('data-post-id');
+            deletePost(postId);
         });
     });
 }
@@ -252,7 +269,7 @@ function performSearch() {
     displayPosts(filteredPosts, searchResults);
 }
 
-// Filter controls - FIXED: Now properly hidden by default
+// Filter controls
 function toggleFilters() {
     filtersPanel.classList.toggle('hidden');
 }
@@ -327,7 +344,7 @@ async function submitPost() {
         videos: videoUrls,
         userId: currentUserId,
         timestamp: Date.now(),
-        edited: false // FIXED: Always set to false initially
+        edited: false
     };
 
     // Save to Firebase
@@ -347,7 +364,7 @@ async function submitPost() {
     }
 }
 
-// Cooldown system - FIXED: Now properly blocks post button and shows countdown
+// Cooldown system - FIXED: Now properly blocks post button
 async function checkCooldown() {
     try {
         const cooldownSnap = await get(ref(db, `userCooldowns/${currentUserId}`));
@@ -357,7 +374,6 @@ async function checkCooldown() {
             const cooldownEnd = lastPostTime + (2 * 60 * 1000); // 2 minutes
             if (Date.now() < cooldownEnd) {
                 const remaining = Math.ceil((cooldownEnd - Date.now()) / 1000);
-                showCooldownNotification(remaining);
                 return false;
             }
         }
@@ -377,27 +393,25 @@ function updatePostButtonState() {
             const remaining = Math.ceil((cooldownEnd - Date.now()) / 1000);
             
             if (remaining > 0) {
-                // Still in cooldown
+                // Still in cooldown - disable button and show timer
+                postBtn.disabled = true;
                 postBtn.classList.add('disabled');
-                postBtn.style.pointerEvents = 'none';
                 startCooldownTimer(remaining);
             } else {
                 // Cooldown finished
+                postBtn.disabled = false;
                 postBtn.classList.remove('disabled');
-                postBtn.style.pointerEvents = 'auto';
-                postBtn.innerHTML = 'Post';
+                postBtn.innerHTML = '<i class="fas fa-plus"></i> Post';
                 if (cooldownInterval) {
                     clearInterval(cooldownInterval);
                     cooldownInterval = null;
                 }
-                cooldownNotification.classList.add('hidden');
             }
         } else {
             // No cooldown
+            postBtn.disabled = false;
             postBtn.classList.remove('disabled');
-            postBtn.style.pointerEvents = 'auto';
-            postBtn.innerHTML = 'Post';
-            cooldownNotification.classList.add('hidden');
+            postBtn.innerHTML = '<i class="fas fa-plus"></i> Post';
         }
     });
 }
@@ -420,25 +434,7 @@ function startCooldownTimer(remainingSeconds) {
         const minutes = Math.floor(remainingSeconds / 60);
         const seconds = remainingSeconds % 60;
         postBtn.innerHTML = `Wait ${minutes}:${seconds.toString().padStart(2, '0')}`;
-        
-        // Update notification if visible
-        if (!cooldownNotification.classList.contains('hidden')) {
-            document.getElementById('cooldown-message').textContent = 
-                `Please wait ${minutes}:${seconds.toString().padStart(2, '0')} before posting again`;
-        }
     }, 1000);
-}
-
-function showCooldownNotification(remainingSeconds) {
-    const minutes = Math.floor(remainingSeconds / 60);
-    const seconds = remainingSeconds % 60;
-    document.getElementById('cooldown-message').textContent = 
-        `Please wait ${minutes}:${seconds.toString().padStart(2, '0')} before posting again`;
-    
-    cooldownNotification.classList.remove('hidden');
-    setTimeout(() => {
-        cooldownNotification.classList.add('hidden');
-    }, 5000);
 }
 
 // Post details
@@ -454,7 +450,7 @@ async function openPostDetails(postId) {
     document.getElementById('detail-post-date').textContent = formatDate(post.timestamp, true);
     document.getElementById('detail-post-description').textContent = post.description;
     
-    // Show edited badge if applicable - FIXED: Only show if post was actually edited
+    // Show edited badge if applicable
     const editedBadge = document.getElementById('detail-edited');
     if (post.edited) {
         editedBadge.classList.remove('hidden');
@@ -462,9 +458,18 @@ async function openPostDetails(postId) {
         editedBadge.classList.add('hidden');
     }
 
+    // NEW: Add delete button for user's own posts
+    const deleteButton = document.getElementById('delete-post-btn');
+    if (post.userId === currentUserId) {
+        deleteButton.classList.remove('hidden');
+        deleteButton.onclick = () => deletePost(postId);
+    } else {
+        deleteButton.classList.add('hidden');
+    }
+
     // Load media
-    loadMediaGallery(post.photos, 'photos-gallery', 'photo');
-    loadMediaGallery(post.videos, 'videos-gallery', 'video');
+    loadMediaGallery(post.photos, 'photos-gallery', 'photo', postId);
+    loadMediaGallery(post.videos, 'videos-gallery', 'video', postId);
 
     // Update reactions
     updateReactionCounts(reactions);
@@ -482,7 +487,7 @@ function closePostDetails() {
     setTimeout(() => postDetailsPopup.classList.add('hidden'), 200);
 }
 
-function loadMediaGallery(mediaArray, galleryId, mediaType) {
+function loadMediaGallery(mediaArray, galleryId, mediaType, postId) {
     const gallery = document.getElementById(galleryId);
     
     if (!mediaArray || mediaArray.length === 0) {
@@ -490,12 +495,16 @@ function loadMediaGallery(mediaArray, galleryId, mediaType) {
         return;
     }
 
-    gallery.innerHTML = mediaArray.map(url => {
+    gallery.innerHTML = mediaArray.map((url, index) => {
         if (mediaType === 'photo') {
-            return `<div class="media-item"><img src="${url}" alt="Post photo" onerror="this.style.display='none'"></div>`;
+            return `
+                <div class="media-item" data-media-type="photo" data-url="${url}" data-post-id="${postId}">
+                    <img src="${url}" alt="Post photo" onerror="this.style.display='none'">
+                </div>
+            `;
         } else {
             return `
-                <div class="media-item">
+                <div class="media-item" data-media-type="video" data-url="${url}" data-post-id="${postId}">
                     <video controls>
                         <source src="${url}" type="video/mp4">
                         Your browser does not support the video tag.
@@ -504,9 +513,59 @@ function loadMediaGallery(mediaArray, galleryId, mediaType) {
             `;
         }
     }).join('');
+
+    // Add click event for media zoom
+    gallery.querySelectorAll('.media-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            // Don't trigger if clicking video controls
+            if (e.target.tagName === 'VIDEO' || e.target.tagName === 'SOURCE') return;
+            
+            const mediaType = item.getAttribute('data-media-type');
+            const url = item.getAttribute('data-url');
+            openMediaZoom(url, mediaType);
+        });
+    });
 }
 
-// Reactions system
+// NEW: Media zoom functionality
+function openMediaZoom(url, mediaType) {
+    const zoomMedia = document.getElementById('zoom-media');
+    zoomMedia.innerHTML = '';
+
+    if (mediaType === 'photo') {
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = 'Zoomed photo';
+        zoomMedia.appendChild(img);
+    } else {
+        const video = document.createElement('video');
+        video.controls = true;
+        video.autoplay = true;
+        const source = document.createElement('source');
+        source.src = url;
+        source.type = 'video/mp4';
+        video.appendChild(source);
+        zoomMedia.appendChild(video);
+    }
+
+    mediaZoomPopup.classList.remove('hidden');
+    setTimeout(() => mediaZoomPopup.classList.add('active'), 10);
+}
+
+function closeMediaZoom() {
+    mediaZoomPopup.classList.remove('active');
+    setTimeout(() => {
+        mediaZoomPopup.classList.add('hidden');
+        // Stop video playback
+        const video = document.querySelector('#zoom-media video');
+        if (video) {
+            video.pause();
+            video.currentTime = 0;
+        }
+    }, 200);
+}
+
+// Reactions system - FIXED: Now allows removing reactions and prevents multiple reactions
 async function getReactions(postId) {
     try {
         const reactionsSnap = await get(ref(db, `reactions/${postId}`));
@@ -532,10 +591,11 @@ function updateReactionCounts(reactions) {
 
 function setupReactionButtons(postId, reactions) {
     const userReaction = reactions[currentUserId];
+    currentUserReaction = userReaction ? userReaction.type : null;
     
     document.querySelectorAll('.reaction-btn').forEach(btn => {
         btn.classList.remove('active');
-        btn.addEventListener('click', (e) => handleReaction(postId, e));
+        btn.onclick = (e) => handleReaction(postId, e);
         
         // Set active state for user's current reaction
         if (userReaction && btn.getAttribute('data-reaction') === userReaction.type) {
@@ -546,12 +606,21 @@ function setupReactionButtons(postId, reactions) {
 
 async function handleReaction(postId, event) {
     const reactionType = event.currentTarget.getAttribute('data-reaction');
+    const reactionRef = ref(db, `reactions/${postId}/${currentUserId}`);
     
     try {
-        await set(ref(db, `reactions/${postId}/${currentUserId}`), {
-            type: reactionType,
-            timestamp: Date.now()
-        });
+        // If clicking the same reaction type, remove it (toggle off)
+        if (currentUserReaction === reactionType) {
+            await remove(reactionRef);
+            currentUserReaction = null;
+        } else {
+            // Otherwise, set the new reaction (replaces any existing reaction)
+            await set(reactionRef, {
+                type: reactionType,
+                timestamp: Date.now()
+            });
+            currentUserReaction = reactionType;
+        }
         
         // Reload reactions to update counts
         const updatedReactions = await getReactions(postId);
@@ -563,7 +632,28 @@ async function handleReaction(postId, event) {
     }
 }
 
-// Edit post system
+// NEW: Delete post function
+async function deletePost(postId) {
+    if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        // Delete post
+        await remove(ref(db, `posts/${postId}`));
+        // Delete reactions for this post
+        await remove(ref(db, `reactions/${postId}`));
+        
+        // Close details popup if open
+        closePostDetails();
+        
+    } catch (error) {
+        console.error('Error deleting post:', error);
+        alert('Failed to delete post. Please try again.');
+    }
+}
+
+// Edit post system - FIXED: Now includes media editing
 function openEditPopup(postId) {
     const post = currentPosts.find(p => p.id === postId);
     if (!post || post.userId !== currentUserId) return;
@@ -572,6 +662,8 @@ function openEditPopup(postId) {
     
     document.getElementById('edit-post-name').value = post.name;
     document.getElementById('edit-post-description').value = post.description;
+    document.getElementById('edit-photo-urls').value = post.photos ? post.photos.join('\n') : '';
+    document.getElementById('edit-video-urls').value = post.videos ? post.videos.join('\n') : '';
     updateEditCharCounters();
     
     editPostPopup.classList.remove('hidden');
@@ -589,9 +681,16 @@ async function saveEdit() {
 
     const name = document.getElementById('edit-post-name').value.trim();
     const description = document.getElementById('edit-post-description').value.trim();
+    const photoUrls = document.getElementById('edit-photo-urls').value.split('\n').filter(url => url.trim());
+    const videoUrls = document.getElementById('edit-video-urls').value.split('\n').filter(url => url.trim());
 
     if (!name || !description) {
         alert('Please fill in all fields');
+        return;
+    }
+
+    if (photoUrls.length === 0 && videoUrls.length === 0) {
+        alert('Please add at least one photo or video URL');
         return;
     }
 
@@ -599,7 +698,9 @@ async function saveEdit() {
         await update(ref(db, `posts/${editingPostId}`), {
             name: name,
             description: description,
-            edited: true // FIXED: Only set to true when actually edited
+            photos: photoUrls,
+            videos: videoUrls,
+            edited: true
         });
 
         closeEditPopup();
