@@ -222,6 +222,7 @@ nav a.active {
     box-shadow: var(--shadow);
     transition: var(--transition);
     border: 1px solid rgba(255, 255, 255, 0.05);
+    position: relative; /* For delete button positioning */
 }
 
 .post-card:hover {
@@ -230,11 +231,13 @@ nav a.active {
     border-color: rgba(74, 144, 226, 0.3);
 }
 
+/* FIXED: Delete button in top right corner */
 .post-header {
     display: flex;
-    justify-content: between;
+    justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 10px;
+    position: relative;
 }
 
 .post-name {
@@ -243,6 +246,32 @@ nav a.active {
     color: var(--accent);
     margin-bottom: 5px;
     flex: 1;
+    padding-right: 30px; /* Make space for delete button */
+}
+
+.delete-post-btn {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 0.8rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.delete-post-btn:hover {
+    background: #d32f2f;
+    transform: scale(1.1);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
 }
 
 .post-date {
@@ -680,5 +709,13 @@ nav a.active {
     
     .media-gallery {
         grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .delete-post-btn {
+        top: -8px;
+        right: -8px;
+        width: 24px;
+        height: 24px;
+        font-size: 0.7rem;
     }
 }
