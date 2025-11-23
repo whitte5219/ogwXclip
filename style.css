@@ -153,6 +153,14 @@ nav a.active {
     box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
 }
 
+.btn:disabled {
+    background: var(--secondary);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    opacity: 0.6;
+}
+
 .btn-secondary {
     background: transparent;
     border: 1px solid var(--text-secondary);
@@ -257,6 +265,11 @@ nav a.active {
     font-size: 3rem;
     margin-bottom: 20px;
     color: var(--secondary);
+}
+
+/* Hidden class */
+.hidden {
+    display: none !important;
 }
 
 /* Popup System */
@@ -429,12 +442,14 @@ nav a.active {
     font-size: 0.9rem;
 }
 
-/* Media Gallery */
+/* Media Gallery - FIXED: Made media items smaller */
 .media-gallery {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
     margin-top: 15px;
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 .media-item {
@@ -442,6 +457,7 @@ nav a.active {
     overflow: hidden;
     background: rgba(255,255,255,0.05);
     transition: var(--transition);
+    height: 120px;
 }
 
 .media-item:hover {
@@ -451,7 +467,7 @@ nav a.active {
 .media-item img,
 .media-item video {
     width: 100%;
-    height: 150px;
+    height: 100%;
     object-fit: cover;
     display: block;
 }
@@ -604,7 +620,7 @@ nav a.active {
     }
 
     .media-gallery {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     }
 
     .popup-buttons {
@@ -623,5 +639,9 @@ nav a.active {
 
     .tab-buttons {
         flex-direction: column;
+    }
+    
+    .media-gallery {
+        grid-template-columns: repeat(3, 1fr);
     }
 }
